@@ -88,8 +88,95 @@ export interface RawJobPosting {
    * Preserved verbatim for auditability and re-parsing.
    */
   rawJson: Record<string, unknown>;
+  /** Raw HTML content of the job posting page, if available. */
+  rawHtml?: string;
   /** Which platform this posting came from. */
   platform: SupportedPlatform;
   /** Wall-clock time at which this posting was first fetched. */
   discoveredAt: Date;
+}
+
+// ─── Parsed job posting ───────────────────────────────────────────────────────
+
+/**
+ * The fully-structured result produced by the parser after extracting
+ * all 16 required fields from the raw posting.
+ *
+ * Requirements: 6.1, 6.2, 6.3, 6.5
+ */
+export interface ParsedJobPosting {
+  // ── Origin ────────────────────────────────────────────────────────────────
+  /** Original source URL of the job posting. */
+  sourceUrl: string;
+  /** Which platform this posting came from. */
+  platform: SupportedPlatform;
+  /** Wall-clock time at which this posting was first fetched. */
+  discoveredAt: Date;
+  /** When the parsing was completed. */
+  parsedAt: Date;
+
+  // ── The 16 structured fields (null when not extractable) ─────────────────
+  /** 1. Company name. */
+  company: string | null;
+  /** 2. Job title. */
+  title: string | null;
+  /** 3. List of explicitly required skills. */
+  requiredSkills: string[] | null;
+  /** 4. List of preferred / nice-to-have skills. */
+  preferredSkills: string[] | null;
+  /** 5. Minimum years of experience required. */
+  yearsExperienceMin: number | null;
+  /** 6. Maximum years of experience mentioned. */
+  yearsExperienceMax: number | null;
+  /** 7. List of work locations (city, country, or "Remote"). */
+  location: string[] | null;
+  /** 8. Whether the role is fully remote. */
+  isRemote: boolean | null;
+  /** 9. Whether the role is hybrid. */
+  isHybrid: boolean | null;
+  /** 10. Minimum salary figure. */
+  salaryMin: number | null;
+  /** 11. Maximum salary figure. */
+  salaryMax: number | null;
+  /** 12. Salary currency code, e.g. "USD". */
+  currency: string | null;
+  /** 13. Employment type, e.g. "full_time", "contract". */
+  employmentType: string | null;
+  /** 14. Visa / work-authorisation requirements. */
+  visaRequirements: string[] | null;
+  /** 15. Application deadline date. */
+  applicationDeadline: Date | null;
+  /** 16. Direct application URL. */
+  applicationUrl: string | null;
+
+  // ── Audit / auditability fields ───────────────────────────────────────────
+  /**
+   * Full raw JSON payload from the source, preserved verbatim.
+   * Requirements: 6.3
+   */
+  rawJson: Record<string, unknown>;
+  /**
+   * Full raw HTML content from the source page, preserved verbatim.
+   * Requirements: 6.3
+   */
+  rawHtml: string | null;
+
+  // ── Embedding ─────────────────────────────────────────────────────────────
+  /**
+   * 384-dimensional sentence embedding produced by the all-MiniLM-L6-v2 model.
+   * Present only when embedding generation succeeded (status='parsed').
+   * Requirements: 27.2, 27.3
+   */
+  embedding?: number[];
+
+  // ── Processing metadata ───────────────────────────────────────────────────
+  /**
+   * Processing status.
+   * - 'parsed'            – successfully extracted ≥3 structured fields.
+   * - 'parse_failed'      – fewer than 3 fields could be extracted; posting skipped.
+   * - 'embedding_pending' – parsed successfully but embedding generation failed;
+   *                         embedding can be retried later.
+   * Requirements: 6.5, 6.4
+   */
+  status: 'parsed' | 'parse_failed' | 'embedding_pending';
 }
