@@ -350,8 +350,8 @@ Full-stack AI-powered job application automation platform. Implementation is pha
 ## Phase 6: Application Automation
 
 - [ ] 37. Implement Playwright browser pool management
-  - Write `app/services/browser_pool.py` with `BrowserPool` managing 3–5 Playwright browser instances; `acquire_session() -> BrowserSession` (blocks until available); `release_session(session)` always callable; each context isolated with no shared cookies/storage
-  - Wrap session acquisition in an `async with` context manager to guarantee release via `__aexit__`
+  - Write `src/services/browserPool.ts` with `BrowserPool` class managing 3–5 Playwright browser instances; `acquireSession(): Promise<BrowserContext>` (queues callers until a context is available); `releaseSession(context: BrowserContext): void` always callable; each context isolated with no shared cookies/storage
+  - Wrap session acquisition in a `withBrowser<T>(pool, fn)` async helper that guarantees `releaseSession` is called in a `finally` block regardless of outcome
   - _Requirements: 12.11_
 
 - [ ] 38. Implement Application Automation Agent core
@@ -537,7 +537,7 @@ Full-stack AI-powered job application automation platform. Implementation is pha
     - On parsing failure: return 422 with reason description
     - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.6, 15.7_
   - [ ] 59.2 Write `POST /api/jobs/manual/{id}/confirm` endpoint:
-    - Validate user confirmation; queue job for application via arq; return task ID
+    - Validate user confirmation; enqueue job for application via BullMQ `applicationQueue`; return task ID
     - _Requirements: 15.5_
   - [ ] 59.3 Build manual URL submission UI
     - Create `app/(dashboard)/jobs/manual/` page with URL paste form; show parsed job preview and match score breakdown after submission; show confirm/cancel buttons before queuing

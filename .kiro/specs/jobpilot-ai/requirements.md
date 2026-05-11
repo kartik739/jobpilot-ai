@@ -31,9 +31,9 @@ The system is entirely composed of free and open-source components — no paid A
 - **LLM_Provider**: Any configured free large language model provider (Ollama, Gemini free tier, Groq free tier, OpenRouter free tier).
 - **pgvector**: The PostgreSQL vector extension used for semantic similarity search.
 - **SeaweedFS**: The self-hosted S3-compatible file storage service used for resumes, cover letters, and screenshots.
-- **arq**: The async Redis-backed task queue used for background worker processing.
+- **BullMQ**: The async Redis-backed task queue used for background worker processing.
 - **GlitchTip**: The self-hosted Sentry-compatible error tracking service.
-- **structlog**: The structured logging library used for all Backend log output.
+- **pino**: The structured JSON logging library used for all Backend log output.
 - **Token_Bucket**: The per-platform rate-limiting mechanism that controls request frequency.
 - **Truthfulness_Report**: The output of the truthfulness validation function, indicating whether any fabrications were introduced during resume optimization.
 
@@ -468,8 +468,8 @@ The system is entirely composed of free and open-source components — no paid A
 
 1. THE System SHALL store all resume files, cover letter files, and application screenshots in SeaweedFS using its S3-compatible API.
 2. WHEN a file is stored in SeaweedFS and then retrieved, THE System SHALL return byte-for-byte identical content.
-3. THE Backend SHALL use arq as the async task queue for all background workers (job discovery, application submission, email monitoring, analytics).
-4. WHEN a task is enqueued via arq, THE Backend SHALL eventually consume and execute it unless the system is shut down.
+3. THE Backend SHALL use BullMQ as the async task queue for all background workers (job discovery, application submission, email monitoring, analytics).
+4. WHEN a task is enqueued via BullMQ, THE Backend SHALL eventually consume and execute it unless the system is shut down.
 
 ---
 
