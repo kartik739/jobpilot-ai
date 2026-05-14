@@ -17,59 +17,59 @@ Full-stack AI-powered job application automation platform. Implementation is pha
   - Create `prometheus/prometheus.yml` scrape config targeting the backend `/metrics` endpoint
   - _Requirements: 30.1_
 
-- [ ] 2. Scaffold Fastify backend project structure
+- [x] 2. Scaffold Fastify backend project structure
   - [x] 2.1 Initialize Node.js TypeScript project with `package.json` and pin all dependencies from the design's dependency table (fastify, @fastify/cors, @fastify/helmet, @fastify/jwt, @fastify/multipart, @fastify/websocket, @fastify/rate-limit, prisma, @prisma/client, bullmq, playwright, openai, googleapis, @xenova/transformers, puppeteer, bcryptjs, zod, pino, @sentry/node, ioredis, pg, pgvector, archiver, fast-levenshtein, vitest, fast-check)
     - Create `src/` directory with sub-directories: `api/`, `agents/`, `workers/`, `services/`, `core/`, `integrations/`
     - Set up `src/server.ts` Fastify application factory with `onReady` and `onClose` hooks
     - Configure `tsconfig.json` with strict mode, target ES2022, module NodeNext
     - _Requirements: 30.1, 30.2_
-  - [ ] 2.2 Configure pino for structured JSON logging
+  - [x] 2.2 Configure pino for structured JSON logging
     - Write `src/core/logger.ts` that exports a pino logger with JSON transport in production, pretty-print in development
     - Bind `requestId` and `userId` to log context via Fastify's `onRequest` hook
     - _Requirements: 30.2_
-  - [ ] 2.3 Configure GlitchTip error tracking via @sentry/node SDK
+  - [x] 2.3 Configure GlitchTip error tracking via @sentry/node SDK
     - Write `src/core/errorTracking.ts` initializing `@sentry/node` with DSN from `GLITCHTIP_DSN` env var
     - Add `beforeSend` hook to scrub passwords, encryption keys, and OAuth tokens from error payloads
     - _Requirements: 29.1, 29.2, 29.3_
 
 
-- [ ] 3. Create database schema and Prisma migrations
-  - [ ] 3.1 Write Prisma schema (`prisma/schema.prisma`) defining all models: `User`, `Profile`, `WorkExperience`, `Education`, `Project`, `Skill`, `Certification`, `ResumeVersion`, `JobPosting` (with `Unsupported("vector(384)")` embedding column), `JobMatch`, `ApplicationRecord`, `StatusTransition`, `AgentTask`, `Notification`, `JobSourceConfig`, `LlmCache`, `InterviewPrepSheet`, `ReusableAnswer`
+- [x] 3. Create database schema and Prisma migrations
+  - [x] 3.1 Write Prisma schema (`prisma/schema.prisma`) defining all models: `User`, `Profile`, `WorkExperience`, `Education`, `Project`, `Skill`, `Certification`, `ResumeVersion`, `JobPosting` (with `Unsupported("vector(384)")` embedding column), `JobMatch`, `ApplicationRecord`, `StatusTransition`, `AgentTask`, `Notification`, `JobSourceConfig`, `LlmCache`, `InterviewPrepSheet`, `ReusableAnswer`
     - Mark `phone`, `salaryMin`, `salaryMax`, `portalCredentials` fields as `String?` (stored encrypted)
     - Add `@@unique([userId, fingerprint])` on `ApplicationRecord`
     - Add `@@unique([fingerprint])` on `JobPosting`
     - Add raw SQL migration to enable pgvector: `CREATE EXTENSION IF NOT EXISTS vector`
     - _Requirements: 1.1, 7.4, 13.1, 18.2, 18.5, 27.1_
-  - [ ] 3.2 Generate and apply initial Prisma migration
+  - [x] 3.2 Generate and apply initial Prisma migration
     - Run `npx prisma migrate dev --name init` to produce migration SQL; verify all tables, columns, indexes, and constraints are present
     - Add manual index SQL in migration for `job_postings(fingerprint)`, `application_records(user_id, status)`, `application_records(applied_at)`, and IVFFlat index on `job_postings.embedding` using cosine ops
     - _Requirements: 27.1, 27.4_
 
 
-- [ ] 4. Implement JWT authentication system
-  - [ ] 4.1 Write `src/core/auth.ts` with: bcrypt password hashing via `bcryptjs`, JWT access token minting (1-hour expiry) via `@fastify/jwt`, refresh token generation and ioredis storage (7-day TTL), token validation Fastify hook
+- [x] 4. Implement JWT authentication system
+  - [x] 4.1 Write `src/core/auth.ts` with: bcrypt password hashing via `bcryptjs`, JWT access token minting (1-hour expiry) via `@fastify/jwt`, refresh token generation and ioredis storage (7-day TTL), token validation Fastify hook
     - Implement `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout` route handlers
     - Add `authenticate` Fastify preHandler hook that validates JWT and decorates request with `user`; return HTTP 401 for missing/invalid tokens
     - Return HTTP 403 when an authenticated user requests another user's resources
     - _Requirements: 23.1, 23.2, 23.3, 23.4, 23.5, 23.6_
-  - [ ]* 4.2 Write unit tests for authentication
+  - [x] 4.2 Write unit tests for authentication
     - Test bcrypt hashing never stores plaintext; test JWT expiry; test refresh token Redis TTL; test role isolation (user A cannot access user B's data)
     - _Requirements: 23.1, 23.2, 23.3, 23.6_
 
-- [ ] 5. Implement AES-256-GCM encryption utilities
-  - [ ] 5.1 Write `src/core/encryption.ts` using Node.js built-in `crypto` module: `encrypt(plaintext: string): string` (returns base64-encoded iv+authTag+ciphertext) and `decrypt(encrypted: string): string`; key derived from `ENCRYPTION_KEY` env var (32-byte base64 string)
+- [x] 5. Implement AES-256-GCM encryption utilities
+  - [x] 5.1 Write `src/core/encryption.ts` using Node.js built-in `crypto` module: `encrypt(plaintext: string): string` (returns base64-encoded iv+authTag+ciphertext) and `decrypt(encrypted: string): string`; key derived from `ENCRYPTION_KEY` env var (32-byte base64 string)
     - Integrate encrypt/decrypt calls in Prisma middleware for `phone`, `salaryMin`, `salaryMax`, `portalCredentials` fields
     - Log error and throw HTTP 500 (without exposing key) on decryption failure
     - _Requirements: 1.9, 1.10, 24.1, 24.2, 24.3, 24.4_
-  - [ ]* 5.2 Write property test for encryption round-trip (Property 21)
+  - [x] 5.2 Write property test for encryption round-trip (Property 21)
     - **Property 21: Encryption Round-Trip**
     - **Validates: Requirements 24.1, 24.3**
     - Use fast-check to generate arbitrary strings; assert `decrypt(encrypt(p)) === p` for all inputs
     - _Requirements: 24.3_
 
 
-- [ ] 6. Implement SeaweedFS file storage client
-  - [ ] 6.1 Write `src/services/storage.ts` wrapping the SeaweedFS S3-compatible API using the AWS SDK v3 S3 client: `uploadFile(key, data, contentType): Promise<string>`, `downloadFile(key): Promise<Buffer>`, `deleteFile(key): Promise<void>`, `generatePresignedUrl(key, expiresIn=900): Promise<string>`
+- [x] 6. Implement SeaweedFS file storage client
+  - [x] 6.1 Write `src/services/storage.ts` wrapping the SeaweedFS S3-compatible API using the AWS SDK v3 S3 client: `uploadFile(key, data, contentType): Promise<string>`, `downloadFile(key): Promise<Buffer>`, `deleteFile(key): Promise<void>`, `generatePresignedUrl(key, expiresIn=900): Promise<string>`
     - Verify round-trip: upload then download must return byte-for-byte identical bytes
     - Generate pre-signed tokens with 15-minute maximum expiry
     - _Requirements: 24.5, 28.1, 28.2_
@@ -78,21 +78,21 @@ Full-stack AI-powered job application automation platform. Implementation is pha
     - **Validates: Requirements 28.2**
     - Use fast-check to generate arbitrary Buffer data; assert downloaded bytes equal uploaded bytes
 
-- [ ] 7. Set up BullMQ task queue and worker infrastructure
+- [x] 7. Set up BullMQ task queue and worker infrastructure
   - Write `src/workers/queue.ts` defining BullMQ `Queue` instances for each worker type (discovery, application, email, analytics) backed by ioredis
   - Write `src/workers/base.ts` with a typed `enqueueTask(type, payload, options: { priority?, delay? })` helper
   - Write worker entry points in `src/workers/` as BullMQ `Worker` instances consuming each queue
   - Verify: an enqueued task is eventually consumed by the worker process
   - _Requirements: 28.3, 28.4_
 
-- [ ] 8. Scaffold Next.js 14 frontend project
+- [x] 8. Scaffold Next.js 14 frontend project
   - Initialize Next.js 14 app router project with TypeScript; install and configure Tailwind CSS, shadcn/ui, TanStack Query v5, Zustand, Recharts, react-hook-form, zod, socket.io-client
   - Create `lib/api.ts` Axios/fetch wrapper that attaches `Authorization: Bearer` header from Zustand auth store and handles 401 token refresh
   - Create `lib/queryClient.ts` TanStack Query client with sensible `staleTime` and `gcTime` defaults
   - Set up `app/layout.tsx` with `QueryClientProvider` and `ThemeProvider`
   - _Requirements: 30.1_
 
-- [ ] 9. Phase 1 Checkpoint — Ensure all tests pass
+- [x] 9. Phase 1 Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 

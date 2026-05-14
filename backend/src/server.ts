@@ -2,15 +2,46 @@ import { pathToFileURL } from 'node:url';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import jwt from '@fastify/jwt';
+import { Redis } from 'ioredis';
+import { logger } from './core/logger.js';
+import { initErrorTracking } from './core/errorTracking.js';
+import { authRoutes } from './api/routes/auth.js';
+
+// Initialize error tracking as early as possible so the SDK can instrument
+// Node.js modules before they are first imported by other parts of the app.
+initErrorTracking();
 
 export async function buildApp(opts: FastifyServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: true,
+    // Use our configured pino logger instance instead of the default
+    loggerInstance: logger,
     ...opts,
   });
 
   await app.register(cors);
   await app.register(helmet);
+
+  // JWT plugin — secret comes from environment; fall back to a dev placeholder
+  await app.register(jwt, {
+    secret: process.env['JWT_SECRET'] ?? 'dev-secret-change-in-production',
+  });
+
+  // Redis client — used for refresh token storage
+  const redis = new Redis(process.env['REDIS_URL'] ?? 'redis://localhost:6379');
+
+  // Auth routes
+  await app.register(authRoutes, { redis });
+
+  // Bind requestId and userId to every request's log context so all downstream
+  // log calls automatically include these fields without repeating them.
+  app.addHook('onRequest', async (req) => {
+    req.log = req.log.child({
+      requestId: req.id,
+      // req.user is populated by @fastify/jwt — may not be present on unauthenticated routes
+      userId: (req as { user?: { id?: string } }).user?.id ?? undefined,
+    });
+  });
 
   app.addHook('onReady', async () => {
     app.log.info('Server is ready');
