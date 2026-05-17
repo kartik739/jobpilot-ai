@@ -11,6 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import * as fc from 'fast-check';
 
 // ---------------------------------------------------------------------------
 // Hoist mocks so variables are available before module evaluation

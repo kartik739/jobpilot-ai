@@ -100,7 +100,7 @@ function mapCertification(ce: CertificationInput) {
  *  8. targetRoles non-empty
  *  9. preferredLocations non-empty
  */
-function computeCompleteness(data: {
+export function computeCompleteness(data: {
   fullName?: string | null;
   email?: string | null;
   phone?: string | null;
