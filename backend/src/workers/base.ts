@@ -4,6 +4,7 @@ import {
   applicationQueue,
   emailQueue,
   analyticsQueue,
+  rankingQueue,
 } from './queue.js';
 
 export type AgentTaskType =
@@ -23,9 +24,9 @@ interface EnqueueOptions {
 }
 
 // Map each task type to its queue
-const QUEUE_MAP: Record<AgentTaskType, 'discovery' | 'application' | 'email' | 'analytics'> = {
+const QUEUE_MAP: Record<AgentTaskType, 'discovery' | 'ranking' | 'application' | 'email' | 'analytics'> = {
   discover_jobs:          'discovery',
-  rank_jobs:              'discovery',
+  rank_jobs:              'ranking',
   optimize_resume:        'application',
   generate_cover_letter:  'application',
   submit_application:     'application',
@@ -50,7 +51,8 @@ export async function enqueueTask(
   const queueName = QUEUE_MAP[type];
 
   const queue =
-    queueName === 'discovery'   ? discoveryQueue
+    queueName === 'discovery'    ? discoveryQueue
+    : queueName === 'ranking'    ? rankingQueue
     : queueName === 'application' ? applicationQueue
     : queueName === 'email'       ? emailQueue
     : analyticsQueue;

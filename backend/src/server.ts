@@ -9,6 +9,7 @@ import { initErrorTracking } from './core/errorTracking.js';
 import { authRoutes } from './api/routes/auth.js';
 import { profileRoutes } from './api/routes/profile.js';
 import { resumeRoutes } from './api/routes/resumes.js';
+import { jobRoutes } from './api/routes/jobs.js';
 
 // Initialize error tracking as early as possible so the SDK can instrument
 // Node.js modules before they are first imported by other parts of the app.
@@ -40,6 +41,9 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
 
   // Resume version routes
   await app.register(resumeRoutes);
+
+  // Job ranking / match routes
+  await app.register(jobRoutes);
 
   // Bind requestId and userId to every request's log context so all downstream
   // log calls automatically include these fields without repeating them.

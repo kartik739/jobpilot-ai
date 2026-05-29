@@ -10,6 +10,7 @@ export const discoveryQueue = new Queue('discovery', { connection });
 export const applicationQueue = new Queue('application', { connection });
 export const emailQueue = new Queue('email', { connection });
 export const analyticsQueue = new Queue('analytics', { connection });
+export const rankingQueue = new Queue('ranking', { connection });
 
 /**
  * Gracefully close all queue connections.
@@ -21,6 +22,7 @@ export async function closeQueues(): Promise<void> {
     applicationQueue.close(),
     emailQueue.close(),
     analyticsQueue.close(),
+    rankingQueue.close(),
   ]);
   await connection.quit();
 }
