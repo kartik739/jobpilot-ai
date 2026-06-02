@@ -60,6 +60,11 @@ export async function enqueueTask(
   const jobOptions = {
     ...(options.priority !== undefined && { priority: options.priority }),
     ...(options.delay    !== undefined && { delay:    options.delay }),
+    // For application tasks, configure exponential backoff retries (req 12.8)
+    ...(type === 'submit_application' && {
+      attempts: 3,
+      backoff: { type: 'exponential' as const, delay: 1000 },
+    }),
   };
 
   await queue.add(type, payload, jobOptions);
