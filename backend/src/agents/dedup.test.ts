@@ -197,7 +197,8 @@ async function submitAndRecord(task: ApplicationTask, pool: BrowserPool): Promis
   }
   if (result.success) {
     try {
-      await (prisma.applicationRecord.create as ReturnType<typeof vi.fn>)({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma.applicationRecord.create as any)({
         data: {
           userId: task.userId,
           fingerprint: task.jobFingerprint,

@@ -18,7 +18,8 @@ import type { Redis } from 'ioredis';
 // create the mock function before the factory executes.
 
 const { mockCount } = vi.hoisted(() => ({
-  mockCount: vi.fn<() => Promise<number>>(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mockCount: vi.fn<(...args: any[]) => Promise<number>>(),
 }));
 
 vi.mock('../db.js', () => ({

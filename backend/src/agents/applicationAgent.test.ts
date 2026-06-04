@@ -447,10 +447,11 @@ describe('Property 16: No Duplicate Applications', () => {
           let callCount = 0;
 
           // First invocation returns null (no record); all subsequent return the record
-          vi.mocked(prisma.applicationRecord.findFirst).mockImplementation(async () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (vi.mocked(prisma.applicationRecord.findFirst) as any).mockImplementation(async () => {
             callCount += 1;
             if (callCount === 1) return null;
-            return existingRecord as never;
+            return existingRecord;
           });
 
           const concurrentCalls = Array.from({ length: 4 }, () => {
