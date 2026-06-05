@@ -11,6 +11,7 @@ import { profileRoutes } from './api/routes/profile.js';
 import { resumeRoutes } from './api/routes/resumes.js';
 import { jobRoutes } from './api/routes/jobs.js';
 import { agentRoutes } from './api/routes/agent.js';
+import { applicationRoutes } from './api/routes/applications.js';
 
 // Initialize error tracking as early as possible so the SDK can instrument
 // Node.js modules before they are first imported by other parts of the app.
@@ -48,6 +49,9 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
 
   // Agent control routes (pause/resume/status)
   await app.register(agentRoutes, { redis });
+
+  // Application tracker routes
+  await app.register(applicationRoutes);
 
   // Bind requestId and userId to every request's log context so all downstream
   // log calls automatically include these fields without repeating them.
