@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { authenticate } from '../../core/auth.js';
 import { prisma } from '../../db.js';
+import { generatePresignedUrl } from '../../services/storage.js';
 import {
   CreateApplicationRequest,
   UpdateApplicationStatusRequest,
@@ -255,6 +256,72 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
         }
         throw err;
       }
+    },
+  );
+
+  // ── GET /api/applications/:id/screenshot-url ──────────────────────────────
+  app.get(
+    '/api/applications/:id/screenshot-url',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const { key } = request.query as { key?: string };
+
+      if (!key || key.trim() === '') {
+        return reply.status(422).send({ error: 'Query param "key" is required' });
+      }
+
+      // Verify the application belongs to the requesting user and the key is in screenshotPaths
+      const application = await prisma.applicationRecord.findFirst({
+        where: { id, userId: request.user.id },
+        select: { id: true, screenshotPaths: true },
+      });
+
+      if (!application) {
+        return reply.status(404).send({ error: 'Application not found' });
+      }
+
+      if (!application.screenshotPaths.includes(key)) {
+        return reply.status(403).send({ error: 'Screenshot key not associated with this application' });
+      }
+
+      try {
+        const url = await generatePresignedUrl(key);
+        return reply.send({ url });
+      } catch {
+        return reply.status(500).send({ error: 'Failed to generate pre-signed URL' });
+      }
+    },
+  );
+
+  // ── PATCH /api/applications/:id/notes ─────────────────────────────────────
+  app.patch(
+    '/api/applications/:id/notes',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as { notes?: unknown };
+
+      if (typeof body.notes !== 'string') {
+        return reply.status(422).send({ error: 'Body must contain a "notes" string field' });
+      }
+
+      const application = await prisma.applicationRecord.findFirst({
+        where: { id, userId: request.user.id },
+        select: { id: true },
+      });
+
+      if (!application) {
+        return reply.status(404).send({ error: 'Application not found' });
+      }
+
+      const updated = await prisma.applicationRecord.update({
+        where: { id },
+        data: { notes: body.notes },
+        include: INCLUDE_RELATIONS_FULL,
+      });
+
+      return reply.send(updated);
     },
   );
 }

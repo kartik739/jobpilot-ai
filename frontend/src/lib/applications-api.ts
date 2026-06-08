@@ -1,6 +1,6 @@
 import api from './api'
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
+// ─── Cover letter types (existing) ─────────────────────────────────────────────
 
 export type CoverLetterStatus =
   | 'pending_review'
@@ -34,7 +34,167 @@ export interface CoverLetterActionResponse {
   coverLetterStatus: CoverLetterStatus
 }
 
-// ─── API functions ─────────────────────────────────────────────────────────────
+// ─── Application tracker types ─────────────────────────────────────────────────
+
+export type ApplicationStatus =
+  | 'draft'
+  | 'submitted'
+  | 'under_review'
+  | 'phone_screen'
+  | 'technical_interview'
+  | 'final_round'
+  | 'offer_received'
+  | 'offer_accepted'
+  | 'offer_declined'
+  | 'rejected'
+  | 'withdrawn'
+  | 'ghosted'
+  | 'failed_submission'
+
+export const APPLICATION_STATUSES: ApplicationStatus[] = [
+  'draft',
+  'submitted',
+  'under_review',
+  'phone_screen',
+  'technical_interview',
+  'final_round',
+  'offer_received',
+  'offer_accepted',
+  'offer_declined',
+  'rejected',
+  'withdrawn',
+  'ghosted',
+  'failed_submission',
+]
+
+export interface MatchScoreSnapshot {
+  overall: number
+  skillMatch: number
+  experienceMatch: number
+  locationMatch: number
+  salaryMatch: number
+  technologyMatch: number
+  workAuthMatch: boolean
+  disqualifiers: string[]
+}
+
+export interface StatusTransition {
+  id: string
+  applicationRecordId: string
+  from: string
+  to: string
+  triggeredBy: string
+  timestamp: string
+  note: string | null
+}
+
+export interface ApplicationRecord {
+  id: string
+  userId: string
+  jobPostingId: string
+  appliedAt: string
+  source: string
+  applicationUrl: string
+  resumeVersionId: string
+  coverLetterPath: string | null
+  status: ApplicationStatus
+  automationSessionId: string | null
+  screenshotPaths: string[]
+  confirmationNumber: string | null
+  formAnswersSnapshot: Record<string, unknown>
+  fingerprint: string
+  rejectionReason: string | null
+  notes: string
+  matchScoreSnapshot: MatchScoreSnapshot | Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+  jobPosting: { title: string; company: string } | null
+  resumeVersion: { name: string; specialization: string } | null
+  transitions: StatusTransition[]
+}
+
+export interface ApplicationsResponse {
+  data: ApplicationRecord[]
+  pagination: {
+    total: number
+    page: number
+    pageSize: number
+    totalPages: number
+  }
+}
+
+// ─── Application tracker API functions ────────────────────────────────────────
+
+/**
+ * GET /api/applications
+ * Returns paginated list of applications, optionally filtered by status.
+ */
+export async function getApplications(params?: {
+  status?: ApplicationStatus
+  page?: number
+  pageSize?: number
+}): Promise<ApplicationsResponse> {
+  const { data } = await api.get<ApplicationsResponse>('/api/applications', {
+    params,
+  })
+  return data
+}
+
+/**
+ * GET /api/applications/:id
+ * Returns full application record with transitions, jobPosting, and resumeVersion.
+ */
+export async function getApplication(id: string): Promise<ApplicationRecord> {
+  const { data } = await api.get<ApplicationRecord>(`/api/applications/${id}`)
+  return data
+}
+
+/**
+ * PATCH /api/applications/:id/status
+ * Updates the application status and records a StatusTransition.
+ */
+export async function updateApplicationStatus(
+  id: string,
+  payload: { status: ApplicationStatus; note?: string },
+): Promise<ApplicationRecord> {
+  const { data } = await api.patch<ApplicationRecord>(
+    `/api/applications/${id}/status`,
+    payload,
+  )
+  return data
+}
+
+/**
+ * PATCH /api/applications/:id/notes
+ * Updates the notes field of an application.
+ */
+export async function updateApplicationNotes(
+  id: string,
+  notes: string,
+): Promise<ApplicationRecord> {
+  const { data } = await api.patch<ApplicationRecord>(
+    `/api/applications/${id}/notes`,
+    { notes },
+  )
+  return data
+}
+
+/**
+ * GET /api/applications/:id/screenshot-url?key=<key>
+ * Returns a pre-signed URL for a screenshot stored in SeaweedFS.
+ */
+export async function getScreenshotUrl(
+  applicationId: string,
+  key: string,
+): Promise<string> {
+  const { data } = await api.get<{ url: string }>(
+    `/api/applications/${applicationId}/screenshot-url`,
+    { params: { key } },
+  )
+  return data.url
+}
+
+// ─── Cover letter API functions (existing) ─────────────────────────────────────
 
 /**
  * GET /api/applications/:id/materials
@@ -50,7 +210,6 @@ export async function getApplicationMaterials(applicationId: string): Promise<Ap
 /**
  * POST /api/applications/:id/cover-letter/approve
  * Approves the cover letter, optionally with an edited body.
- * Resolves the 24-hour wait immediately.
  */
 export async function approveCoverLetter(
   applicationId: string,
@@ -66,7 +225,6 @@ export async function approveCoverLetter(
 /**
  * POST /api/applications/:id/cover-letter/reject
  * Rejects the cover letter and cancels the pending application.
- * Resolves the 24-hour wait immediately.
  */
 export async function rejectCoverLetter(
   applicationId: string,
