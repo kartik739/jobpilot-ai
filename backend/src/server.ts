@@ -12,6 +12,7 @@ import { resumeRoutes } from './api/routes/resumes.js';
 import { jobRoutes } from './api/routes/jobs.js';
 import { agentRoutes } from './api/routes/agent.js';
 import { applicationRoutes } from './api/routes/applications.js';
+import { gmailRoutes } from './api/routes/gmail.js';
 
 // Initialize error tracking as early as possible so the SDK can instrument
 // Node.js modules before they are first imported by other parts of the app.
@@ -52,6 +53,9 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
 
   // Application tracker routes
   await app.register(applicationRoutes);
+
+  // Gmail OAuth routes
+  await app.register(gmailRoutes);
 
   // Bind requestId and userId to every request's log context so all downstream
   // log calls automatically include these fields without repeating them.
