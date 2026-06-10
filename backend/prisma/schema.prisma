@@ -198,6 +198,7 @@ model ResumeVersion {
   fileHash       String
   isDefault      Boolean   @default(false)
   usageCount     Int       @default(0)
+  successCount   Int       @default(0)
   lastUsedAt     DateTime?
   successRate    Float?
   createdAt      DateTime  @default(now())
@@ -316,6 +317,12 @@ model ApplicationRecord {
   rejectionReason      String?
   notes                String   @default("")
   matchScoreSnapshot   Json
+
+  // Calendar integration (Requirements 17.2–17.6)
+  calendarEventId      String?
+  interviewDate        DateTime?
+  interviewDuration    Int?      // minutes; defaults to 60 when not extractable (Req 17.3)
+  interviewFormat      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
