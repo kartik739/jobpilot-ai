@@ -504,6 +504,13 @@ export default function ApplicationDetailPage() {
               <span aria-hidden="true">📎</span>
               View Materials
             </Link>
+            <Link
+              href={`/applications/${id}/interview-prep`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+            >
+              <span aria-hidden="true">🎯</span>
+              Interview Prep
+            </Link>
             {application.applicationUrl && (
               <a
                 href={application.applicationUrl}

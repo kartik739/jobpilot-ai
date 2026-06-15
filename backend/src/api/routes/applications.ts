@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { authenticate } from '../../core/auth.js';
 import { prisma } from '../../db.js';
 import { generatePresignedUrl } from '../../services/storage.js';
+import { Prisma } from '@prisma/client';
 import {
   CreateApplicationRequest,
   UpdateApplicationStatusRequest,
@@ -10,6 +11,11 @@ import {
   STATUS_ORDER,
   type ApplicationStatus,
 } from '../schemas/applications.js';
+import type { PrepQuestion } from '../../agents/interviewPrep.js';
+
+// Prisma Json fields require a plain JSON-serializable value; cast via
+// Prisma.InputJsonValue to satisfy the type checker.
+const toJson = (v: unknown): Prisma.InputJsonValue => v as Prisma.InputJsonValue;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -319,6 +325,186 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
         where: { id },
         data: { notes: body.notes },
         include: INCLUDE_RELATIONS_FULL,
+      });
+
+      return reply.send(updated);
+    },
+  );
+
+  // ── GET /api/applications/:id/interview-prep ──────────────────────────────
+  // Returns the stored InterviewPrepSheet for an application (req 19.3).
+  // Returns 404 if not yet generated (caller should trigger generation first).
+  app.get(
+    '/api/applications/:id/interview-prep',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+
+      // Verify application ownership
+      const application = await prisma.applicationRecord.findFirst({
+        where: { id, userId: request.user.id },
+        select: { id: true },
+      });
+
+      if (!application) {
+        return reply.status(404).send({ error: 'Application not found' });
+      }
+
+      const sheet = await prisma.interviewPrepSheet.findUnique({
+        where: { applicationId: id },
+      });
+
+      if (!sheet) {
+        return reply.status(404).send({ error: 'Interview prep sheet not yet generated for this application' });
+      }
+
+      return reply.send(sheet);
+    },
+  );
+
+  // ── POST /api/applications/:id/interview-prep/questions ──────────────────
+  // Adds a custom question to the interview prep sheet (req 19.3).
+  // Body: { question: string; category?: 'behavioral' | 'technical' | 'culture' | 'system-design'; note?: string }
+  app.post(
+    '/api/applications/:id/interview-prep/questions',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        question?: unknown;
+        category?: unknown;
+        note?: unknown;
+      };
+
+      if (typeof body.question !== 'string' || body.question.trim() === '') {
+        return reply.status(422).send({ error: 'Body must contain a non-empty "question" string field' });
+      }
+
+      const validCategories = ['behavioral', 'technical', 'culture', 'system-design'];
+      const category: PrepQuestion['category'] =
+        typeof body.category === 'string' && validCategories.includes(body.category)
+          ? (body.category as PrepQuestion['category'])
+          : 'technical';
+
+      const note = typeof body.note === 'string' ? body.note : undefined;
+
+      // Verify application ownership
+      const application = await prisma.applicationRecord.findFirst({
+        where: { id, userId: request.user.id },
+        select: { id: true },
+      });
+
+      if (!application) {
+        return reply.status(404).send({ error: 'Application not found' });
+      }
+
+      // Get or create a prep sheet record
+      const existing = await prisma.interviewPrepSheet.findUnique({
+        where: { applicationId: id },
+      });
+
+      const newQuestion: PrepQuestion & { note?: string } = {
+        question: body.question.trim(),
+        category,
+        ...(note !== undefined ? { note } : {}),
+      };
+
+      if (!existing) {
+        // Create a minimal sheet to hold the custom question
+        const sheet = await prisma.interviewPrepSheet.create({
+          data: {
+            applicationId: id,
+            behavioralQuestions: toJson(category === 'behavioral' ? [newQuestion] : []),
+            technicalQuestions: toJson(category !== 'behavioral' ? [newQuestion] : []),
+            companySummary: '',
+            roleSpecificTips: toJson([]),
+            generatedAt: new Date(),
+          },
+        });
+        return reply.status(201).send(sheet);
+      }
+
+      // Append to the appropriate array
+      const behavioralQuestions = (existing.behavioralQuestions as unknown) as Array<PrepQuestion & { note?: string }>;
+      const technicalQuestions = (existing.technicalQuestions as unknown) as Array<PrepQuestion & { note?: string }>;
+
+      if (category === 'behavioral') {
+        behavioralQuestions.push(newQuestion);
+      } else {
+        technicalQuestions.push(newQuestion);
+      }
+
+      const updated = await prisma.interviewPrepSheet.update({
+        where: { applicationId: id },
+        data: {
+          behavioralQuestions: toJson(behavioralQuestions),
+          technicalQuestions: toJson(technicalQuestions),
+        },
+      });
+
+      return reply.status(201).send(updated);
+    },
+  );
+
+  // ── PATCH /api/applications/:id/interview-prep/questions/:index/note ─────
+  // Updates the note on a specific question by index + category (req 19.3).
+  // Body: { category: 'behavioral' | 'technical'; note: string }
+  app.patch(
+    '/api/applications/:id/interview-prep/questions/:index/note',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { id, index: indexStr } = request.params as { id: string; index: string };
+      const body = request.body as { category?: unknown; note?: unknown };
+
+      const index = parseInt(indexStr, 10);
+      if (Number.isNaN(index) || index < 0) {
+        return reply.status(422).send({ error: 'Invalid question index' });
+      }
+
+      if (typeof body.note !== 'string') {
+        return reply.status(422).send({ error: 'Body must contain a "note" string field' });
+      }
+
+      const validCategories = ['behavioral', 'technical', 'culture', 'system-design'];
+      if (typeof body.category !== 'string' || !validCategories.includes(body.category)) {
+        return reply.status(422).send({ error: 'Body must contain a valid "category" field' });
+      }
+
+      const isBehavioral = body.category === 'behavioral';
+
+      // Verify application ownership
+      const application = await prisma.applicationRecord.findFirst({
+        where: { id, userId: request.user.id },
+        select: { id: true },
+      });
+
+      if (!application) {
+        return reply.status(404).send({ error: 'Application not found' });
+      }
+
+      const sheet = await prisma.interviewPrepSheet.findUnique({
+        where: { applicationId: id },
+      });
+
+      if (!sheet) {
+        return reply.status(404).send({ error: 'Interview prep sheet not found' });
+      }
+
+      const behavioralQuestions = (sheet.behavioralQuestions as unknown) as Array<PrepQuestion & { note?: string }>;
+      const technicalQuestions = (sheet.technicalQuestions as unknown) as Array<PrepQuestion & { note?: string }>;
+      const targetArray = isBehavioral ? behavioralQuestions : technicalQuestions;
+
+      if (index >= targetArray.length) {
+        return reply.status(404).send({ error: 'Question index out of range' });
+      }
+
+      targetArray[index] = { ...targetArray[index]!, note: body.note };
+
+      const updated = await prisma.interviewPrepSheet.update({
+        where: { applicationId: id },
+        data: isBehavioral
+          ? { behavioralQuestions: toJson(behavioralQuestions) }
+          : { technicalQuestions: toJson(technicalQuestions) },
       });
 
       return reply.send(updated);

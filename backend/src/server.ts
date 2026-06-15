@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastif
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import jwt from '@fastify/jwt';
+import websocket from '@fastify/websocket';
 import { Redis } from 'ioredis';
 import { logger } from './core/logger.js';
 import { initErrorTracking } from './core/errorTracking.js';
@@ -13,6 +14,9 @@ import { jobRoutes } from './api/routes/jobs.js';
 import { agentRoutes } from './api/routes/agent.js';
 import { applicationRoutes } from './api/routes/applications.js';
 import { gmailRoutes } from './api/routes/gmail.js';
+import { analyticsRoutes } from './api/routes/analytics.js';
+import { notificationRoutes } from './api/routes/notifications.js';
+import { sourcesRoutes } from './api/routes/sources.js';
 
 // Initialize error tracking as early as possible so the SDK can instrument
 // Node.js modules before they are first imported by other parts of the app.
@@ -32,6 +36,9 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
   await app.register(jwt, {
     secret: process.env['JWT_SECRET'] ?? 'dev-secret-change-in-production',
   });
+
+  // WebSocket plugin — must be registered before any websocket routes
+  await app.register(websocket);
 
   // Redis client — used for refresh token storage
   const redis = new Redis(process.env['REDIS_URL'] ?? 'redis://localhost:6379');
@@ -56,6 +63,15 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
 
   // Gmail OAuth routes
   await app.register(gmailRoutes);
+
+  // Analytics routes
+  await app.register(analyticsRoutes);
+
+  // Notification routes (REST + WebSocket)
+  await app.register(notificationRoutes, { redis });
+
+  // Job source health routes
+  await app.register(sourcesRoutes, { redis });
 
   // Bind requestId and userId to every request's log context so all downstream
   // log calls automatically include these fields without repeating them.

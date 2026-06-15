@@ -234,3 +234,80 @@ export async function rejectCoverLetter(
   )
   return data
 }
+
+// ─── Interview prep types ──────────────────────────────────────────────────────
+
+export type QuestionCategory = 'behavioral' | 'technical' | 'culture' | 'system-design'
+
+export interface PrepQuestion {
+  question: string
+  category: QuestionCategory
+  suggestedAnswer?: string
+  note?: string
+}
+
+export interface InterviewPrepSheet {
+  id: string
+  applicationId: string
+  behavioralQuestions: PrepQuestion[]
+  technicalQuestions: PrepQuestion[]
+  companySummary: string
+  roleSpecificTips: string[]
+  generatedAt: string
+}
+
+export interface AddCustomQuestionPayload {
+  question: string
+  category?: QuestionCategory
+  note?: string
+}
+
+export interface UpdateQuestionNotePayload {
+  category: QuestionCategory
+  note: string
+}
+
+// ─── Interview prep API functions ─────────────────────────────────────────────
+
+/**
+ * GET /api/applications/:id/interview-prep
+ * Returns the stored interview prep sheet for an application.
+ * Throws 404 if the sheet hasn't been generated yet.
+ */
+export async function getInterviewPrepSheet(applicationId: string): Promise<InterviewPrepSheet> {
+  const { data } = await api.get<InterviewPrepSheet>(
+    `/api/applications/${applicationId}/interview-prep`,
+  )
+  return data
+}
+
+/**
+ * POST /api/applications/:id/interview-prep/questions
+ * Adds a custom question to the interview prep sheet.
+ */
+export async function addCustomQuestion(
+  applicationId: string,
+  payload: AddCustomQuestionPayload,
+): Promise<InterviewPrepSheet> {
+  const { data } = await api.post<InterviewPrepSheet>(
+    `/api/applications/${applicationId}/interview-prep/questions`,
+    payload,
+  )
+  return data
+}
+
+/**
+ * PATCH /api/applications/:id/interview-prep/questions/:index/note
+ * Updates the note on a specific question by its index in the category array.
+ */
+export async function updateQuestionNote(
+  applicationId: string,
+  index: number,
+  payload: UpdateQuestionNotePayload,
+): Promise<InterviewPrepSheet> {
+  const { data } = await api.patch<InterviewPrepSheet>(
+    `/api/applications/${applicationId}/interview-prep/questions/${index}/note`,
+    payload,
+  )
+  return data
+}
