@@ -1,0 +1,147 @@
+# Production overlay — run with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# This file ONLY contains overrides; the base docker-compose.yml is always
+# merged in first.  All services here inherit the healthchecks, depends_on,
+# networks, and named volumes defined in the base file.
+
+version: "3.9"
+
+services:
+
+  # ─── Data Stores ────────────────────────────────────────────────────────────
+  #
+  # NOTE ON PORTS: Docker Compose merge semantics for `ports` are additive —
+  # you cannot remove base-file ports via an override.  In practice this is
+  # harmless in a production environment where the host firewall (iptables /
+  # ufw / security-group rules) blocks all ports except 80 and 443.  Set your
+  # host firewall to allow only 80/443 publicly; the remaining published ports
+  # will only be reachable from localhost/VPN.
+
+  postgres:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  redis:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  seaweedfs:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  # ─── Error Tracking ─────────────────────────────────────────────────────────
+
+  glitchtip:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  # ─── Monitoring ─────────────────────────────────────────────────────────────
+
+  prometheus:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  grafana:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  # ─── Application Services ───────────────────────────────────────────────────
+
+  backend:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+  frontend:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
+      NEXT_PUBLIC_WS_URL: wss://${DOMAIN}/ws
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  # ─── Workers ────────────────────────────────────────────────────────────────
+
+  worker-discovery:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  worker-application:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    deploy:
+      resources:
+        # Playwright-heavy — needs more headroom
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+  worker-email:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  # ─── Reverse Proxy ──────────────────────────────────────────────────────────
+
+  nginx:
+    restart: unless-stopped
+    # Only nginx exposes ports publicly in production
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Replace the dev nginx config with the production TLS config (read-only)
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      # Mount the TLS certificate directory (read-only)
+      - ./nginx/certs:/etc/nginx/certs:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
