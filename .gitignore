@@ -1,2 +1,10 @@
 # Kiro IDE files
 .kiro/
+
+# Production environment file (contains secrets)
+.env.prod
+
+# TLS certificates — never commit private keys or cert bundles
+/nginx/certs/*.pem
+/nginx/certs/*.crt
+/nginx/certs/*.key
