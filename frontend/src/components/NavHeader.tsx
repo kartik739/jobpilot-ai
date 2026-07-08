@@ -47,6 +47,9 @@ export default function NavHeader() {
           <Link href="/sources" className="px-3 py-1.5 rounded-lg hover:bg-gray-100 hover:text-gray-900 transition-colors">
             Sources
           </Link>
+          <Link href="/settings" className="px-3 py-1.5 rounded-lg hover:bg-gray-100 hover:text-gray-900 transition-colors">
+            Settings
+          </Link>
         </div>
 
         {/* Right section */}
