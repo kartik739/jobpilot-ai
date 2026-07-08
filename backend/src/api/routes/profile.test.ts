@@ -344,3 +344,115 @@ describe('Sensitive fields not leaked in validation error output (Req 1.10)', ()
     }
   });
 });
+
+// ─── Section 4: Property-Based Tests ─────────────────────────────────────────
+// **Validates: Requirements 1.8**
+
+import * as fc from 'fast-check';
+
+/**
+ * Property 1: Profile Completeness Score Boundedness
+ *
+ * For any arbitrary combination of profile fields, the completeness score
+ * must always be in the range [0, 100].
+ *
+ * **Validates: Requirements 1.8**
+ */
+describe('Property 1: Profile Completeness Score Boundedness (Req 1.8)', () => {
+  it('score is always in [0, 100] for any arbitrary profile field combination', () => {
+    const optionalString = fc.option(fc.string({ minLength: 0, maxLength: 100 }), {
+      nil: undefined,
+    });
+    const optionalNullableString = fc.option(
+      fc.oneof(fc.string({ minLength: 0, maxLength: 100 }), fc.constant(null)),
+      { nil: undefined },
+    );
+    const optionalStringArray = fc.option(fc.array(fc.string({ minLength: 1, maxLength: 50 })), {
+      nil: undefined,
+    });
+    const optionalObjectArray = fc.option(fc.array(fc.record({})), { nil: undefined });
+
+    const profileArb = fc.record({
+      fullName: optionalNullableString,
+      email: optionalNullableString,
+      phone: optionalNullableString,
+      location: optionalNullableString,
+      workExperiences: optionalObjectArray,
+      skills: optionalObjectArray,
+      workAuthorization: optionalStringArray,
+      targetRoles: optionalStringArray,
+      preferredLocations: optionalStringArray,
+    });
+
+    fc.assert(
+      fc.property(profileArb, (profile) => {
+        const score = computeCompleteness(profile);
+        return score >= 0 && score <= 100;
+      }),
+      { numRuns: 1000 },
+    );
+  });
+
+  it('score is always an integer', () => {
+    const optionalNullableString = fc.option(
+      fc.oneof(fc.string({ minLength: 0, maxLength: 100 }), fc.constant(null)),
+      { nil: undefined },
+    );
+    const optionalStringArray = fc.option(fc.array(fc.string({ minLength: 1, maxLength: 50 })), {
+      nil: undefined,
+    });
+    const optionalObjectArray = fc.option(fc.array(fc.record({})), { nil: undefined });
+
+    const profileArb = fc.record({
+      fullName: optionalNullableString,
+      email: optionalNullableString,
+      phone: optionalNullableString,
+      location: optionalNullableString,
+      workExperiences: optionalObjectArray,
+      skills: optionalObjectArray,
+      workAuthorization: optionalStringArray,
+      targetRoles: optionalStringArray,
+      preferredLocations: optionalStringArray,
+    });
+
+    fc.assert(
+      fc.property(profileArb, (profile) => {
+        const score = computeCompleteness(profile);
+        return Number.isInteger(score);
+      }),
+      { numRuns: 1000 },
+    );
+  });
+
+  it('score is always in [0, 100] when explicit hasWorkExperience and hasSkills booleans are provided', () => {
+    const optionalNullableString = fc.option(
+      fc.oneof(fc.string({ minLength: 0, maxLength: 100 }), fc.constant(null)),
+      { nil: undefined },
+    );
+    const optionalStringArray = fc.option(fc.array(fc.string({ minLength: 1, maxLength: 50 })), {
+      nil: undefined,
+    });
+
+    const arb = fc.record({
+      profile: fc.record({
+        fullName: optionalNullableString,
+        email: optionalNullableString,
+        phone: optionalNullableString,
+        location: optionalNullableString,
+        workAuthorization: optionalStringArray,
+        targetRoles: optionalStringArray,
+        preferredLocations: optionalStringArray,
+      }),
+      hasWorkExperience: fc.boolean(),
+      hasSkills: fc.boolean(),
+    });
+
+    fc.assert(
+      fc.property(arb, ({ profile, hasWorkExperience, hasSkills }) => {
+        const score = computeCompleteness(profile, hasWorkExperience, hasSkills);
+        return score >= 0 && score <= 100;
+      }),
+      { numRuns: 1000 },
+    );
+  });
+});
