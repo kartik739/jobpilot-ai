@@ -16,16 +16,16 @@ datasource db {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Gmail OAuth tokens (stored encrypted via AES-256-GCM)
-  gmailAccessToken  String?
-  gmailRefreshToken String?
-  gmailTokenExpiry  DateTime?
+  gmailAccessToken  String?   @map("gmail_access_token")
+  gmailRefreshToken String?   @map("gmail_refresh_token")
+  gmailTokenExpiry  DateTime? @map("gmail_token_expiry")
   // Whether the Google Calendar scope was granted during Gmail OAuth
-  gmailCalendarScope Boolean @default(false)
+  gmailCalendarScope Boolean @default(false) @map("gmail_calendar_scope")
 
   profile           Profile?
   resumeVersions    ResumeVersion[]
@@ -45,47 +45,47 @@ model User {
 
 model Profile {
   id     String @id @default(cuid())
-  userId String @unique
+  userId String @unique @map("user_id")
 
   // Personal Information
-  fullName  String
+  fullName  String  @map("full_name")
   email     String
   phone     String? // stored encrypted (AES-256-GCM)
   location  String
 
-  linkedinUrl   String?
-  githubUrl     String?
-  portfolioUrl  String?
-  websiteUrl    String?
+  linkedinUrl   String? @map("linkedin_url")
+  githubUrl     String? @map("github_url")
+  portfolioUrl  String? @map("portfolio_url")
+  websiteUrl    String? @map("website_url")
 
   // Work Authorization
-  workAuthorization  String[]
-  requiresSponsorship Boolean @default(false)
-  noticePeriod        Int     @default(0) // days
+  workAuthorization   String[] @map("work_authorization")
+  requiresSponsorship Boolean  @default(false) @map("requires_sponsorship")
+  noticePeriod        Int      @default(0) @map("notice_period") // days
 
   // Job Preferences (stored as JSON)
-  remotePreference      String  @default("flexible")
-  targetRoles           String[]
-  preferredLocations    String[]
-  salaryMin             String? // stored encrypted
-  salaryMax             String? // stored encrypted
-  currency              String  @default("USD")
-  employmentTypes       String[]
-  excludedCompanies     String[]
-  preferredCompanies    String[]
-  targetIndustries      String[]
-  targetCompanySizes    String[]
-  dailyApplyLimit       Int     @default(10)
-  autoPauseEnabled      Boolean @default(true)
-  coverLetterReviewMode String  @default("auto")
+  remotePreference      String   @default("flexible") @map("remote_preference")
+  targetRoles           String[] @map("target_roles")
+  preferredLocations    String[] @map("preferred_locations")
+  salaryMin             String?  @map("salary_min") // stored encrypted
+  salaryMax             String?  @map("salary_max") // stored encrypted
+  currency              String   @default("USD")
+  employmentTypes       String[] @map("employment_types")
+  excludedCompanies     String[] @map("excluded_companies")
+  preferredCompanies    String[] @map("preferred_companies")
+  targetIndustries      String[] @map("target_industries")
+  targetCompanySizes    String[] @map("target_company_sizes")
+  dailyApplyLimit       Int      @default(10) @map("daily_apply_limit")
+  autoPauseEnabled      Boolean  @default(true) @map("auto_pause_enabled")
+  coverLetterReviewMode String   @default("auto") @map("cover_letter_review_mode")
 
   // Portal credentials (stored encrypted)
-  portalCredentials String? // stored encrypted
+  portalCredentials String? @map("portal_credentials") // stored encrypted
 
   // Metadata
-  profileCompleteness Int      @default(0)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  profileCompleteness Int      @default(0) @map("profile_completeness")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   workExperiences WorkExperience[]
@@ -99,18 +99,18 @@ model Profile {
 
 model WorkExperience {
   id          String   @id @default(cuid())
-  profileId   String
+  profileId   String   @map("profile_id")
   company     String
   title       String
   location    String?
-  startDate   DateTime
-  endDate     DateTime?
-  isCurrent   Boolean  @default(false)
+  startDate   DateTime @map("start_date")
+  endDate     DateTime? @map("end_date")
+  isCurrent   Boolean  @default(false) @map("is_current")
   description String?
   bullets     String[]
   skills      String[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -119,16 +119,16 @@ model WorkExperience {
 
 model Education {
   id           String    @id @default(cuid())
-  profileId    String
+  profileId    String    @map("profile_id")
   institution  String
   degree       String
   field        String?
-  startDate    DateTime
-  endDate      DateTime?
+  startDate    DateTime  @map("start_date")
+  endDate      DateTime? @map("end_date")
   gpa          Float?
   description  String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -137,18 +137,18 @@ model Education {
 
 model Project {
   id          String   @id @default(cuid())
-  profileId   String
+  profileId   String   @map("profile_id")
   name        String
   description String?
   url         String?
   repoUrl     String?
   skills      String[]
-  startDate   DateTime?
-  endDate     DateTime?
-  isCurrent   Boolean  @default(false)
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  isCurrent   Boolean  @default(false) @map("is_current")
   highlights  String[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -157,12 +157,12 @@ model Project {
 
 model Skill {
   id          String   @id @default(cuid())
-  profileId   String
+  profileId   String   @map("profile_id")
   name        String
   category    String?
   proficiency String?  // beginner | intermediate | advanced | expert
-  yearsOfExp  Float?
-  createdAt   DateTime @default(now())
+  yearsOfExp  Float?   @map("years_of_exp")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -170,15 +170,15 @@ model Skill {
 }
 
 model Certification {
-  id           String    @id @default(cuid())
-  profileId    String
-  name         String
-  issuer       String?
-  issueDate    DateTime?
-  expiryDate   DateTime?
-  credentialId String?
-  credentialUrl String?
-  createdAt    DateTime  @default(now())
+  id            String    @id @default(cuid())
+  profileId     String    @map("profile_id")
+  name          String
+  issuer        String?
+  issueDate     DateTime? @map("issue_date")
+  expiryDate    DateTime? @map("expiry_date")
+  credentialId  String?   @map("credential_id")
+  credentialUrl String?   @map("credential_url")
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -191,18 +191,18 @@ model Certification {
 
 model ResumeVersion {
   id             String    @id @default(cuid())
-  userId         String
+  userId         String    @map("user_id")
   name           String
   specialization String    // backend | frontend | fullstack | devops | cloud | ai_ml | mobile | data | general
-  fileUrl        String
-  fileHash       String
-  isDefault      Boolean   @default(false)
-  usageCount     Int       @default(0)
-  successCount   Int       @default(0)
-  lastUsedAt     DateTime?
-  successRate    Float?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  fileUrl        String    @map("file_url")
+  fileHash       String    @map("file_hash")
+  isDefault      Boolean   @default(false) @map("is_default")
+  usageCount     Int       @default(0) @map("usage_count")
+  successCount   Int       @default(0) @map("success_count")
+  lastUsedAt     DateTime? @map("last_used_at")
+  successRate    Float?    @map("success_rate")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   applications ApplicationRecord[]
@@ -216,8 +216,8 @@ model ResumeVersion {
 
 model JobPosting {
   id          String  @id @default(cuid())
-  externalId  String?
-  sourceUrl   String
+  externalId  String? @map("external_id")
+  sourceUrl   String  @map("source_url")
   platform    String
   fingerprint String  @unique
 
@@ -225,31 +225,31 @@ model JobPosting {
   company         String
   title           String
   description     String
-  descriptionHtml String?
-  requiredSkills  String[]
-  preferredSkills String[]
-  yearsExperienceMin Int?
-  yearsExperienceMax Int?
+  descriptionHtml String?  @map("description_html")
+  requiredSkills  String[] @map("required_skills")
+  preferredSkills String[] @map("preferred_skills")
+  yearsExperienceMin Int?  @map("years_experience_min")
+  yearsExperienceMax Int?  @map("years_experience_max")
   location        String[]
-  isRemote        Boolean @default(false)
-  isHybrid        Boolean @default(false)
-  salaryMin       Float?
-  salaryMax       Float?
+  isRemote        Boolean  @default(false) @map("is_remote")
+  isHybrid        Boolean  @default(false) @map("is_hybrid")
+  salaryMin       Float?   @map("salary_min")
+  salaryMax       Float?   @map("salary_max")
   currency        String?
-  employmentType  String?
-  visaRequirements String[]
-  applicationDeadline DateTime?
-  applicationUrl  String
-  atsType         String?
+  employmentType  String?  @map("employment_type")
+  visaRequirements String[] @map("visa_requirements")
+  applicationDeadline DateTime? @map("application_deadline")
+  applicationUrl  String   @map("application_url")
+  atsType         String?  @map("ats_type")
 
   // Processing metadata
-  discoveredAt DateTime  @default(now())
-  parsedAt     DateTime?
+  discoveredAt DateTime  @default(now()) @map("discovered_at")
+  parsedAt     DateTime? @map("parsed_at")
 
   // pgvector embedding (384-dim, requires vector extension)
   embedding Unsupported("vector(384)")?
 
-  rawData Json
+  rawData Json @map("raw_data")
 
   // 'new' | 'parsed' | 'ranked' | 'applied' | 'expired' | 'skipped' | 'parse_failed' | 'embedding_pending'
   status String @default("new")
@@ -266,20 +266,20 @@ model JobPosting {
 
 model JobMatch {
   id           String @id @default(cuid())
-  userId       String
-  jobPostingId String
+  userId       String @map("user_id")
+  jobPostingId String @map("job_posting_id")
 
   overall             Float
-  skillMatch          Float
-  experienceMatch     Float
-  locationMatch       Float
-  salaryMatch         Float
-  technologyMatch     Float
-  workAuthMatch       Boolean
-  successProbability  Float
-  disqualifiers       Json
+  skillMatch          Float   @map("skill_match")
+  experienceMatch     Float   @map("experience_match")
+  locationMatch       Float   @map("location_match")
+  salaryMatch         Float   @map("salary_match")
+  technologyMatch     Float   @map("technology_match")
+  workAuthMatch       Boolean @map("work_auth_match")
+  successProbability  Float   @map("success_probability")
+  disqualifiers       Json    @map("disqualifiers")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobPosting JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
@@ -294,14 +294,14 @@ model JobMatch {
 
 model ApplicationRecord {
   id           String @id @default(cuid())
-  userId       String
-  jobPostingId String
+  userId       String @map("user_id")
+  jobPostingId String @map("job_posting_id")
 
-  appliedAt            DateTime
+  appliedAt            DateTime @map("applied_at")
   source               String
   applicationUrl       String
-  resumeVersionId      String
-  coverLetterPath      String?
+  resumeVersionId      String   @map("resume_version_id")
+  coverLetterPath      String?  @map("cover_letter_path")
 
   // Status tracking
   status               String   @default("draft")
@@ -309,7 +309,7 @@ model ApplicationRecord {
   // Automation metadata
   automationSessionId  String?
   screenshotPaths      String[]
-  confirmationNumber   String?
+  confirmationNumber   String?  @map("confirmation_number")
   formAnswersSnapshot  Json
   fingerprint          String
 
@@ -324,8 +324,8 @@ model ApplicationRecord {
   interviewDuration    Int?      // minutes; defaults to 60 when not extractable (Req 17.3)
   interviewFormat      String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobPosting    JobPosting     @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
@@ -339,11 +339,11 @@ model ApplicationRecord {
 
 model StatusTransition {
   id                  String   @id @default(cuid())
-  applicationRecordId String
-  from                String
-  to                  String
-  triggeredBy         String   // 'user' | 'email_monitor' | 'automation'
-  timestamp           DateTime @default(now())
+  applicationRecordId String   @map("application_id")
+  from                String   @map("from_status")
+  to                  String   @map("to_status")
+  triggeredBy         String   @map("triggered_by") // 'user' | 'email_monitor' | 'automation'
+  timestamp           DateTime @default(now()) @map("created_at")
   note                String?
 
   application ApplicationRecord @relation(fields: [applicationRecordId], references: [id], onDelete: Cascade)
@@ -358,7 +358,7 @@ model StatusTransition {
 model AgentTask {
   id          String    @id @default(cuid())
   type        String
-  userId      String
+  userId      String    @map("user_id")
   payload     Json
   priority    String    @default("normal") // critical | high | normal | low
   status      String    @default("queued") // queued | processing | completed | failed | retrying
@@ -366,9 +366,9 @@ model AgentTask {
   maxAttempts Int       @default(3)
   lastError   String?
   scheduledAt DateTime  @default(now())
-  startedAt   DateTime?
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -381,13 +381,13 @@ model AgentTask {
 
 model Notification {
   id       String  @id @default(cuid())
-  userId   String
+  userId   String  @map("user_id")
   type     String
   title    String
   body     String
   metadata Json
-  isRead   Boolean  @default(false)
-  createdAt DateTime @default(now())
+  isRead   Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
   readAt   DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -401,16 +401,16 @@ model Notification {
 
 model JobSourceConfig {
   id       String  @id @default(cuid())
-  userId   String
+  userId   String  @map("user_id")
   platform String
-  enabled  Boolean @default(true)
-  config   Json
+  enabled  Boolean @default(true) @map("is_active")
+  config   Json    @map("search_params")
 
-  lastRunAt       DateTime?
+  lastRunAt       DateTime? @map("last_run_at")
   lastRunStatus   String    @default("never_run") // success | error | rate_limited | never_run
   lastRunJobsFound Int      @default(0)
   errorMessage    String?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -423,11 +423,11 @@ model JobSourceConfig {
 
 model LlmCache {
   id          String    @id @default(cuid())
-  promptHash  String    @unique
+  promptHash  String    @unique @map("prompt_hash")
   response    String
   model       String
-  createdAt   DateTime  @default(now())
-  expiresAt   DateTime?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  expiresAt   DateTime? @map("expires_at")
 
   @@map("llm_cache")
 }
@@ -438,13 +438,13 @@ model LlmCache {
 
 model InterviewPrepSheet {
   id            String @id @default(cuid())
-  applicationId String @unique
+  applicationId String @unique @map("application_id")
 
   behavioralQuestions Json
   technicalQuestions  Json
   companySummary      String
   roleSpecificTips    Json
-  generatedAt         DateTime @default(now())
+  generatedAt         DateTime @default(now()) @map("created_at")
 
   application ApplicationRecord @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
@@ -457,12 +457,12 @@ model InterviewPrepSheet {
 
 model ReusableAnswer {
   id           String    @id @default(cuid())
-  userId       String
+  userId       String    @map("user_id")
   questionType String
   answer       String
-  usageCount   Int       @default(0)
-  lastUsedAt   DateTime?
-  createdAt    DateTime  @default(now())
+  usageCount   Int       @default(0) @map("usage_count")
+  lastUsedAt   DateTime? @map("last_used_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
