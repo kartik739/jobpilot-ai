@@ -79,6 +79,14 @@ export async function authRoutes(
     const refreshToken = generateRefreshToken();
     await storeRefreshToken(user.id, refreshToken, redis);
 
+    reply.setCookie('access_token', accessToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env['NODE_ENV'] === 'production',
+      path: '/',
+      maxAge: 3600,
+    });
+
     return reply.status(201).send({ accessToken, refreshToken, user });
   });
 
@@ -106,6 +114,14 @@ export async function authRoutes(
     );
     const refreshToken = generateRefreshToken();
     await storeRefreshToken(user.id, refreshToken, redis);
+
+    reply.setCookie('access_token', accessToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env['NODE_ENV'] === 'production',
+      path: '/',
+      maxAge: 3600,
+    });
 
     return reply.send({
       accessToken,
@@ -159,6 +175,8 @@ export async function authRoutes(
 
     const { refreshToken } = result.data;
     await deleteRefreshToken(refreshToken, redis);
+
+    reply.clearCookie('access_token', { path: '/' });
 
     return reply.status(204).send();
   });
