@@ -7,6 +7,7 @@ import { Redis } from 'ioredis';
 import { logger } from './core/logger.js';
 import { initErrorTracking } from './core/errorTracking.js';
 import { authRoutes } from './api/routes/auth.js';
+import { profileRoutes } from './api/routes/profile.js';
 
 // Initialize error tracking as early as possible so the SDK can instrument
 // Node.js modules before they are first imported by other parts of the app.
@@ -32,6 +33,9 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
 
   // Auth routes
   await app.register(authRoutes, { redis });
+
+  // Profile routes
+  await app.register(profileRoutes);
 
   // Bind requestId and userId to every request's log context so all downstream
   // log calls automatically include these fields without repeating them.

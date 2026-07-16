@@ -100,11 +100,11 @@ Full-stack AI-powered job application automation platform. Implementation is pha
 
 ## Phase 2: User Profile & Onboarding
 
-- [ ] 10. Implement profile CRUD API endpoints
-  - [ ] 10.1 Write Zod request/response schemas for `CreateProfileRequest`, `UpdateProfileRequest`, `ProfileResponse` in `src/api/schemas/profile.ts`
+- [x] 10. Implement profile CRUD API endpoints
+  - [x] 10.1 Write Zod request/response schemas for `CreateProfileRequest`, `UpdateProfileRequest`, `ProfileResponse` in `src/api/schemas/profile.ts`
     - Add field-level validators: email uniqueness + valid format → 422; work_authorization non-empty → 422; notice_period >= 0 → 422; salary_min <= salary_max → 422; target_roles non-empty → 422
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
-  - [ ] 10.2 Implement `GET /api/profile`, `POST /api/profile`, `PUT /api/profile` Fastify route handlers in `src/api/routes/profile.ts`
+  - [x] 10.2 Implement `GET /api/profile`, `POST /api/profile`, `PUT /api/profile` Fastify route handlers in `src/api/routes/profile.ts`
     - On read: decrypt sensitive fields before returning; log and return 500 on decryption failure without exposing key
     - On write: encrypt sensitive fields; recompute and store `profileCompleteness` score (required sections: full name, email, phone, location, ≥1 work experience, ≥1 skill, work_authorization, target_roles, preferred_locations)
     - Use Prisma ORM exclusively — no raw SQL strings
