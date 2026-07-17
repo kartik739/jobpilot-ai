@@ -76,6 +76,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      FRONTEND_ORIGIN: https://${DOMAIN}
     deploy:
       resources:
         limits:
@@ -86,7 +87,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
+      NEXT_PUBLIC_API_URL: https://${DOMAIN}
       NEXT_PUBLIC_WS_URL: wss://${DOMAIN}/ws
     deploy:
       resources:
@@ -118,6 +119,26 @@ services:
           memory: 1G
 
   worker-email:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  worker-ranking:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  worker-analytics:
     restart: unless-stopped
     environment:
       NODE_ENV: production
