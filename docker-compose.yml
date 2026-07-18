@@ -154,11 +154,15 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-jobpilot}:${POSTGRES_PASSWORD:-jobpilot}@postgres:5432/${POSTGRES_DB:-jobpilot}
       REDIS_URL: redis://redis:6379/0
-      SEAWEEDFS_URL: http://seaweedfs:8333
+      SEAWEEDFS_ENDPOINT: http://seaweedfs:8333
+      FRONTEND_ORIGIN: http://localhost
       GLITCHTIP_DSN: ${GLITCHTIP_DSN:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       NODE_ENV: ${NODE_ENV:-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
     ports:
       - "3000:3000"
     depends_on:
@@ -215,6 +219,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       GLITCHTIP_DSN: ${GLITCHTIP_DSN:-}
       NODE_ENV: ${NODE_ENV:-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
     depends_on:
       postgres:
         condition: service_healthy
@@ -232,11 +239,14 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-jobpilot}:${POSTGRES_PASSWORD:-jobpilot}@postgres:5432/${POSTGRES_DB:-jobpilot}
       REDIS_URL: redis://redis:6379/0
-      SEAWEEDFS_URL: http://seaweedfs:8333
+      SEAWEEDFS_ENDPOINT: http://seaweedfs:8333
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       GLITCHTIP_DSN: ${GLITCHTIP_DSN:-}
       NODE_ENV: ${NODE_ENV:-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
     depends_on:
       postgres:
         condition: service_healthy
@@ -253,6 +263,54 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     command: ["node", "dist/workers/emailWorker.js"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jobpilot}:${POSTGRES_PASSWORD:-jobpilot}@postgres:5432/${POSTGRES_DB:-jobpilot}
+      REDIS_URL: redis://redis:6379/0
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      GLITCHTIP_DSN: ${GLITCHTIP_DSN:-}
+      NODE_ENV: ${NODE_ENV:-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - jobpilot
+
+  worker-ranking:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "dist/workers/rankingWorker.js"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jobpilot}:${POSTGRES_PASSWORD:-jobpilot}@postgres:5432/${POSTGRES_DB:-jobpilot}
+      REDIS_URL: redis://redis:6379/0
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      GLITCHTIP_DSN: ${GLITCHTIP_DSN:-}
+      NODE_ENV: ${NODE_ENV:-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - jobpilot
+
+  worker-analytics:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "dist/workers/analyticsWorker.js"]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-jobpilot}:${POSTGRES_PASSWORD:-jobpilot}@postgres:5432/${POSTGRES_DB:-jobpilot}
       REDIS_URL: redis://redis:6379/0
