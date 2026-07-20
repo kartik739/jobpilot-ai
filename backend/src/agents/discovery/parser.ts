@@ -17,7 +17,7 @@
  * Requirements: 6.1, 6.2, 6.3, 6.5, 26.3
  */
 
-import OpenAI from 'openai';
+import { getLLMClient, getLLMModel } from '../../core/llmProvider.js';
 import { createChildLogger } from '../../core/logger.js';
 import { generateEmbedding } from '../../services/embeddings.js';
 import type { ParsedJobPosting, RawJobPosting } from './types.js';
@@ -26,29 +26,7 @@ import type { ParsedJobPosting, RawJobPosting } from './types.js';
 
 const log = createChildLogger({ component: 'job-parser' });
 
-// ─── LLM client (lazy-initialised so tests can skip it) ──────────────────────
-
-let _client: OpenAI | null = null;
-
-function getLlmClient(): OpenAI {
-  if (_client) return _client;
-
-  const baseURL =
-    process.env['LLM_BASE_URL'] ?? 'http://localhost:11434/v1';
-
-  _client = new OpenAI({
-    baseURL,
-    // OpenAI-compatible providers (Ollama, Groq, OpenRouter) accept any
-    // non-empty string when authentication is not required.
-    apiKey: process.env['LLM_API_KEY'] ?? 'ollama',
-  });
-
-  return _client;
-}
-
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const LLM_MODEL = process.env['LLM_MODEL'] ?? 'llama3.2';
 
 /** Minimum non-null structured fields required to consider parsing successful. */
 const MIN_EXTRACTABLE_FIELDS = 3;
@@ -211,10 +189,10 @@ function regexFallbackExtract(
 // ─── LLM extraction ──────────────────────────────────────────────────────────
 
 async function extractViaLlm(inputText: string): Promise<LlmExtracted | null> {
-  const client = getLlmClient();
+  const client = getLLMClient();
 
   const response = await client.chat.completions.create({
-    model: LLM_MODEL,
+    model: getLLMModel(),
     response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
