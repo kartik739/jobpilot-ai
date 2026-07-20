@@ -1,6 +1,7 @@
 import { pathToFileURL } from 'node:url';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import jwt from '@fastify/jwt';
 import websocket from '@fastify/websocket';
@@ -8,6 +9,8 @@ import rateLimit from '@fastify/rate-limit';
 import { Redis } from 'ioredis';
 import { logger } from './core/logger.js';
 import { initErrorTracking } from './core/errorTracking.js';
+import { taskQueueDepth } from './core/metrics.js';
+import { discoveryQueue, applicationQueue, emailQueue, rankingQueue } from './workers/queue.js';
 import { authRoutes } from './api/routes/auth.js';
 import { profileRoutes } from './api/routes/profile.js';
 import { resumeRoutes } from './api/routes/resumes.js';
@@ -34,6 +37,20 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
     loggerInstance: logger,
     ...opts,
   });
+
+  // Health check — must be registered BEFORE all auth middleware (Req 5.1)
+  app.get('/health', async (_req, reply) => reply.send({ status: 'ok' }));
+
+  // JWT fail-closed guard — prevent insecure startup in production (Req 11.1)
+  if (process.env['NODE_ENV'] === 'production' && !process.env['JWT_SECRET']) {
+    app.log.fatal('FATAL: JWT_SECRET must be set in production');
+    process.exit(1);
+  }
+
+  // CORS warning — alert when no frontend origin is configured (Req 11.2)
+  if (!process.env['FRONTEND_ORIGIN']) {
+    app.log.warn('FRONTEND_ORIGIN not set — CORS is disabled (no origin allowed)');
+  }
 
   // CORS — only allow requests from the configured frontend origin (Req 33.3)
   await app.register(cors, {
@@ -68,6 +85,9 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
       },
     },
   });
+
+  // Cookie plugin — must be registered before JWT so cookies are available on requests
+  await app.register(cookie);
 
   // JWT plugin — secret comes from environment; fall back to a dev placeholder
   await app.register(jwt, {
@@ -160,6 +180,20 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
 
   // Prometheus metrics endpoint — GET /metrics (Req 30.3)
   await app.register(metricsRoutes);
+
+  // 30-second interval to update queue depth metrics for all four queues (Req 19.4)
+  setInterval(async () => {
+    const [dCount, aCount, eCount, rCount] = await Promise.all([
+      discoveryQueue.getJobCounts(),
+      applicationQueue.getJobCounts(),
+      emailQueue.getJobCounts(),
+      rankingQueue.getJobCounts(),
+    ]);
+    taskQueueDepth.set({ task_type: 'discovery' }, dCount.waiting + dCount.active);
+    taskQueueDepth.set({ task_type: 'application' }, aCount.waiting + aCount.active);
+    taskQueueDepth.set({ task_type: 'email' }, eCount.waiting + eCount.active);
+    taskQueueDepth.set({ task_type: 'ranking' }, rCount.waiting + rCount.active);
+  }, 30_000);
 
   // Bind requestId and userId to every request's log context so all downstream
   // log calls automatically include these fields without repeating them.
