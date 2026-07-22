@@ -11,9 +11,11 @@
  * Requirements: 9.1, 9.2, 9.3, 9.4, 9.11, 9.12
  */
 
-import OpenAI from 'openai';
+import type OpenAI from 'openai';
 import type { ParsedJobPosting } from './discovery/types.js';
 import { createChildLogger } from '../core/logger.js';
+import { getLLMClient, getLLMModel } from '../core/llmProvider.js';
+import { llmCallDurationSeconds } from '../core/metrics.js';
 
 const log = createChildLogger({ module: 'resumeOptimizer' });
 
@@ -256,12 +258,22 @@ async function generateTailoredSummary(
     'Return only the rewritten summary text, nothing else.',
   ].join('\n');
 
-  const response = await llmClient.chat.completions.create({
-    model: process.env['LLM_MODEL'] ?? 'llama3',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 300,
-    temperature: 0.3,
-  });
+  const response = await (async () => {
+    const endTimer = llmCallDurationSeconds.startTimer({ operation: 'resume_optimize' });
+    try {
+      const res = await llmClient.chat.completions.create({
+        model: getLLMModel(),
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 300,
+        temperature: 0.3,
+      });
+      endTimer();
+      return res;
+    } catch (err) {
+      endTimer();
+      throw err;
+    }
+  })();
 
   const content = response.choices[0]?.message?.content;
   if (content == null || content.trim() === '') {
@@ -415,12 +427,7 @@ export async function optimizeResume(
   job: ParsedJobPosting,
   llmClient?: OpenAI,
 ): Promise<TailoredResume> {
-  const client =
-    llmClient ??
-    new OpenAI({
-      baseURL: process.env['OPENAI_BASE_URL'] ?? 'http://localhost:11434/v1',
-      apiKey: process.env['OPENAI_API_KEY'] ?? 'ollama',
-    });
+  const client = llmClient ?? getLLMClient();
 
   log.info(
     { resumeId: baseResume.id, userId: baseResume.userId, jobTitle: job.title },

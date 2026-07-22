@@ -14,6 +14,8 @@
 import OpenAI from 'openai';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { createChildLogger } from '../core/logger.js';
+import { getLLMClient, getLLMModel } from '../core/llmProvider.js';
+import { llmCallDurationSeconds } from '../core/metrics.js';
 import type { UserProfileContext } from './coverLetter.js';
 import type { ParsedJobPosting } from './discovery/types.js';
 
@@ -301,12 +303,7 @@ export async function generatePrepSheet(
   llmClient?: OpenAI,
   prismaClient?: PrismaClient,
 ): Promise<InterviewPrepSheet> {
-  const client =
-    llmClient ??
-    new OpenAI({
-      baseURL: process.env['OPENAI_BASE_URL'] ?? 'http://localhost:11434/v1',
-      apiKey: process.env['OPENAI_API_KEY'] ?? 'ollama',
-    });
+  const client = llmClient ?? getLLMClient();
 
   const prisma = prismaClient ?? new PrismaClient();
 
@@ -320,13 +317,21 @@ export async function generatePrepSheet(
   try {
     const prompt = buildPrompt(profile, job);
 
-    const response = await client.chat.completions.create({
-      model: process.env['LLM_MODEL'] ?? 'llama3',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1200,
-      temperature: 0.4,
-      response_format: { type: 'json_object' },
-    });
+    const endTimer = llmCallDurationSeconds.startTimer({ operation: 'interview_prep' });
+    let response: Awaited<ReturnType<typeof client.chat.completions.create>>;
+    try {
+      response = await client.chat.completions.create({
+        model: getLLMModel(),
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 1200,
+        temperature: 0.4,
+        response_format: { type: 'json_object' },
+      });
+      endTimer();
+    } catch (err) {
+      endTimer();
+      throw err;
+    }
 
     const llmContent = response.choices[0]?.message?.content;
     if (llmContent == null || llmContent.trim() === '') {

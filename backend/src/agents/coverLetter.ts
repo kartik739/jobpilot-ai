@@ -18,6 +18,8 @@ import OpenAI from 'openai';
 import type { FastifyInstance } from 'fastify';
 import type { Redis } from 'ioredis';
 import { createChildLogger } from '../core/logger.js';
+import { getLLMClient, getLLMModel } from '../core/llmProvider.js';
+import { llmCallDurationSeconds } from '../core/metrics.js';
 import { uploadFile } from '../services/storage.js';
 import type { ParsedJobPosting } from './discovery/types.js';
 
@@ -201,12 +203,7 @@ export async function generateCoverLetter(
   applicationId: string,
   llmClient?: OpenAI,
 ): Promise<CoverLetter> {
-  const client =
-    llmClient ??
-    new OpenAI({
-      baseURL: process.env['OPENAI_BASE_URL'] ?? 'http://localhost:11434/v1',
-      apiKey: process.env['OPENAI_API_KEY'] ?? 'ollama',
-    });
+  const client = llmClient ?? getLLMClient();
 
   log.info(
     { userId: profile.userId, applicationId, jobTitle: job.title, company: job.company },
@@ -218,12 +215,20 @@ export async function generateCoverLetter(
   try {
     const prompt = buildPrompt(profile, job);
 
-    const response = await client.chat.completions.create({
-      model: process.env['LLM_MODEL'] ?? 'llama3',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 600,
-      temperature: 0.4,
-    });
+    const endTimer = llmCallDurationSeconds.startTimer({ operation: 'cover_letter_generate' });
+    let response: Awaited<ReturnType<typeof client.chat.completions.create>>;
+    try {
+      response = await client.chat.completions.create({
+        model: getLLMModel(),
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 600,
+        temperature: 0.4,
+      });
+      endTimer();
+    } catch (err) {
+      endTimer();
+      throw err;
+    }
 
     const llmContent = response.choices[0]?.message?.content;
     if (llmContent == null || llmContent.trim() === '') {
