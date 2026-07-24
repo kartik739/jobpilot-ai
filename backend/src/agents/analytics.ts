@@ -7,6 +7,11 @@
  *
  * All queries use Prisma ORM (groupBy, count, findMany) — no raw SQL.
  *
+ * LLM usage: this agent does not make any LLM calls — all analytics are
+ * computed directly from database queries. No getLLMClient() / getLLMModel()
+ * imports or llmCallDurationSeconds metrics are needed here.
+ * Reviewed for task 12.6 (Requirements: 18.2, 18.3, 19.3).
+ *
  * Requirements: 20.1, 20.2, 20.3, 20.4, 20.5, 20.6, 20.7, 20.8
  */
 
