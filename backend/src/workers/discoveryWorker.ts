@@ -26,6 +26,8 @@ import { parseJobDescription } from '../agents/discovery/parser.js';
 import { deduplicatePostings, computeFingerprint } from '../agents/discovery/dedup.js';
 import type { BaseJobDiscoveryConnector } from '../agents/discovery/base.js';
 import type { JobPreferences, SupportedPlatform } from '../agents/discovery/types.js';
+import { rankingQueue } from '../workers/queue.js';
+import { jobsDiscoveredTotal } from '../core/metrics.js';
 
 // ─── Platform connectors ──────────────────────────────────────────────────────
 
@@ -293,6 +295,15 @@ async function runSourceDiscovery(
         },
       });
       stored++;
+      jobsDiscoveredTotal.inc({ platform: posting.platform });
+      if (posting.embedding && posting.embedding.length > 0) {
+        const vec = `[${posting.embedding.join(',')}]`;
+        await prisma.$executeRawUnsafe(
+          `UPDATE job_postings SET embedding = $1::vector WHERE fingerprint = $2`,
+          vec,
+          fingerprint,
+        );
+      }
     } catch (err) {
       // Unique constraint violation means the posting already exists (race condition).
       // This is expected in concurrent runs — log and continue.
@@ -350,6 +361,8 @@ async function processDiscoveryJob(job: Job): Promise<void> {
 
   jobLog.info({ sourceCount: sources.length }, 'Processing enabled job sources');
 
+  let totalStored = 0;
+
   // ── Process each source independently ────────────────────────────────────
   for (const source of sources) {
     const sourceLog = jobLog.child({ sourceId: source.id, platform: source.platform }) as unknown as Logger;
@@ -389,6 +402,7 @@ async function processDiscoveryJob(job: Job): Promise<void> {
 
     try {
       jobsFound = await runSourceDiscovery(connector, preferences, sourceLog);
+      totalStored += jobsFound;
 
       // ── Success ──────────────────────────────────────────────────────────
       await prisma.jobSourceConfig.update({
@@ -439,6 +453,11 @@ async function processDiscoveryJob(job: Job): Promise<void> {
         });
       }
     }
+  }
+
+  if (totalStored > 0) {
+    await rankingQueue.add('rank_jobs', { userId });
+    jobLog.info({ totalStored }, 'Enqueued rank_jobs after discovery');
   }
 
   jobLog.info('Discovery job completed');
