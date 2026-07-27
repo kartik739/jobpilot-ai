@@ -20,6 +20,8 @@ import { submitApplication, type ApplicationTask } from '../agents/applicationAg
 import { isAutomationPaused, isDailyLimitReached, DAILY_LIMIT_DEFAULT } from '../services/applyLimiter.js';
 import { prisma } from '../db.js';
 import { createChildLogger } from '../core/logger.js';
+import { emailQueue } from './queue.js';
+import { applicationsSubmittedTotal } from '../core/metrics.js';
 
 const log = createChildLogger({ module: 'applicationWorker' });
 
@@ -186,7 +188,7 @@ async function processApplicationJob(job: Job<ApplicationJobPayload>): Promise<v
   // ── Case 2: Successful submission ─────────────────────────────────────────
   if (result.success) {
     try {
-      await prisma.applicationRecord.create({
+      const createdRecord = await prisma.applicationRecord.create({
         data: {
           userId: task.userId,
           jobPostingId: task.jobPostingId,
@@ -210,6 +212,13 @@ async function processApplicationJob(job: Job<ApplicationJobPayload>): Promise<v
         { taskId: task.taskId, userId: task.userId, jobPostingId: task.jobPostingId, confirmationNumber: result.confirmationNumber },
         'ApplicationRecord created with status=submitted',
       );
+
+      await emailQueue.add('monitor_application', {
+        userId: task.userId,
+        applicationId: createdRecord.id,
+      });
+
+      applicationsSubmittedTotal.inc({ status: 'submitted' });
     } catch (dbErr) {
       if (dbErr instanceof Prisma.PrismaClientKnownRequestError && dbErr.code === 'P2002') {
         // Race condition duplicate — log and skip (req 13.2)
@@ -420,6 +429,8 @@ applicationWorker.on('failed', async (job: Job<ApplicationJobPayload> | undefine
         },
         'All retries exhausted — ApplicationRecord upserted with status=failed_submission. User notified via notes field with link to original posting.',
       );
+
+      applicationsSubmittedTotal.inc({ status: 'failed' });
 
       // Persist a Notification record so the user can see the failure in-app
       try {
