@@ -8,6 +8,8 @@ import {
   getTodayApplicationCount,
   DAILY_LIMIT_DEFAULT,
 } from '../../services/applyLimiter.js';
+import { computeCompleteness, MINIMUM_COMPLETENESS } from '../../services/completeness.js';
+import { discoveryQueue } from '../../workers/queue.js';
 import { prisma } from '../../db.js';
 import { createChildLogger } from '../../core/logger.js';
 
@@ -22,6 +24,67 @@ export async function agentRoutes(
   options: { redis: Redis },
 ): Promise<void> {
   const { redis } = options;
+
+  /**
+   * POST /api/agent/start
+   * Start the job discovery agent for the authenticated user.
+   * Requires profile completeness ≥ 70; returns HTTP 422 otherwise.
+   * Requirements: 1.8, 2.4, 2.5
+   */
+  app.post(
+    '/api/agent/start',
+    { preHandler: authenticate },
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const userId = req.user.id;
+
+      try {
+        // Load the profile and related counts needed for completeness check.
+        const profile = await prisma.profile.findUnique({
+          where: { userId },
+          include: {
+            workExperiences: { select: { id: true } },
+            skills: { select: { id: true } },
+          },
+        });
+
+        const data = profile
+          ? {
+              fullName: profile.fullName,
+              email: profile.email,
+              phone: profile.phone,
+              location: profile.location,
+              workAuthorization: profile.workAuthorization as string[],
+              targetRoles: profile.targetRoles as string[],
+              preferredLocations: profile.preferredLocations as string[],
+            }
+          : {};
+
+        const hasWorkExperience = (profile?.workExperiences?.length ?? 0) >= 1;
+        const hasSkills = (profile?.skills?.length ?? 0) >= 1;
+
+        const completeness = computeCompleteness(data, hasWorkExperience, hasSkills);
+
+        if (completeness < MINIMUM_COMPLETENESS) {
+          log.warn({ userId, completeness }, 'Agent start blocked — profile completeness too low');
+          return reply.code(422).send({
+            error: 'Profile completeness below minimum threshold',
+            completeness,
+            required: MINIMUM_COMPLETENESS,
+          });
+        }
+
+        // Enqueue the discover_jobs task for the user.
+        await discoveryQueue.add('discover_jobs', { userId }, { jobId: `discover_${userId}` });
+
+        log.info({ userId, completeness }, 'Agent start enqueued discover_jobs');
+
+        return reply.code(200).send({ started: true, completeness });
+      } catch (err) {
+        log.error({ userId, err }, 'Failed to start agent');
+        return reply.code(500).send({ error: 'Failed to start agent' });
+      }
+    },
+  );
 
   /**
    * POST /api/agent/pause
