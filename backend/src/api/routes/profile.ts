@@ -12,6 +12,9 @@ import {
   SkillSchema,
   CertificationSchema,
 } from '../schemas/profile.js';
+import { computeCompleteness } from '../../services/completeness.js';
+
+export { computeCompleteness };
 
 // ─── Nested input types ───────────────────────────────────────────────────────
 
@@ -81,50 +84,6 @@ function mapCertification(ce: CertificationInput) {
     credentialId: ce.credentialId,
     credentialUrl: ce.credentialUrl,
   };
-}
-
-// ─── Completeness helper ──────────────────────────────────────────────────────
-
-/**
- * Compute a profile completeness score (0–100) based on how many of the 9
- * required sections are satisfied.
- *
- * Sections:
- *  1. fullName present
- *  2. email present
- *  3. phone present
- *  4. location present
- *  5. at least one workExperience
- *  6. at least one skill
- *  7. workAuthorization non-empty
- *  8. targetRoles non-empty
- *  9. preferredLocations non-empty
- */
-export function computeCompleteness(data: {
-  fullName?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  location?: string | null;
-  workExperiences?: unknown[];
-  skills?: unknown[];
-  workAuthorization?: string[];
-  targetRoles?: string[];
-  preferredLocations?: string[];
-}): number {
-  const TOTAL = 9;
-  let satisfied = 0;
-
-  if (data.fullName) satisfied++;
-  if (data.email) satisfied++;
-  if (data.phone) satisfied++;
-  if (data.location) satisfied++;
-  if ((data.workExperiences ?? []).length >= 1) satisfied++;
-  if ((data.skills ?? []).length >= 1) satisfied++;
-  if ((data.workAuthorization ?? []).length >= 1) satisfied++;
-  if ((data.targetRoles ?? []).length >= 1) satisfied++;
-  if ((data.preferredLocations ?? []).length >= 1) satisfied++;
-
-  return Math.round((satisfied / TOTAL) * 100);
 }
 
 // ─── Relations include clause ─────────────────────────────────────────────────
