@@ -1,6 +1,6 @@
 # Kiro IDE files
 .kiro/
-
+.claude/
 # Production environment file (contains secrets)
 .env.prod
 
